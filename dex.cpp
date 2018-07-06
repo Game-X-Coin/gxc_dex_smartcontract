@@ -71,6 +71,8 @@ class dex : public eosio::contract {
           N(eosio.token), N(transfer),
           std::make_tuple(from, _self, deposit_asset, std::string(""))
         ).send();
+
+        // TODO: not delete this code.
         print("order_id:", order_id);
         /*accounts.adjust_balance( from, quantity, "deposit" );
         orders orderstable(
@@ -175,7 +177,8 @@ class dex : public eosio::contract {
           ).send();
         }
 
-        // print("fulfilled_amount:", amount, "price:", price);
+        // TODO: not delete this code.
+        print("fulfilled_amount:", amount, "price:", price);
       }
 
       /// @abi action 
