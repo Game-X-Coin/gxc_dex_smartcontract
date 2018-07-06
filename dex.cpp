@@ -142,7 +142,7 @@ class dex : public eosio::contract {
           N(eosio.token), N(transfer),
           std::make_tuple(_self, taker_order.owner, taker_get_amount, std::string(""))
         ).send();
-        if(taker_status == 1 && taker_withdraw_asset.max_amount > 0 ) {
+        if(taker_status == 1 && taker_withdraw_asset.amount > 0 ) {
           action(
             permission_level{ _self, N(active) },
             N(eosio.token), N(transfer),
@@ -175,7 +175,7 @@ class dex : public eosio::contract {
           ).send();
         }
 
-        print("fulfilled_amount:", amount, "price:", price);
+        // print("fulfilled_amount:", amount, "price:", price);
       }
 
       /// @abi action 
