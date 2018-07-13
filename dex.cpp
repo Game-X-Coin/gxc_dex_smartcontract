@@ -35,7 +35,6 @@ class dex : public eosio::contract {
         uint64_t primary_key()const { return balance.symbol.name(); }
       };
 
-      typedef eosio::multi_index<N(accounts), account> accounts;
       typedef eosio::multi_index<N(orders), order> order_index;
       order_index orders;
       /// @abi action
@@ -89,8 +88,8 @@ class dex : public eosio::contract {
       void cancelorder(uint64_t order_id) {
         const auto& order = orders.get(order_id, "order doesn't exist");
         require_auth(order.owner);
+        eosio_assert(order.type == 0, "order is completed or already canceled.");
         auto deposit_remain_asset = order.deposit_remain_asset;
-        // asset amount = order.type == 0 ? asset(order.price * remain_amount, string_to_symbol(4, "GXC")) : asset(remain_amount, order.symbol); 
         print("remain_asset", deposit_remain_asset);
         action(
           permission_level{ _self, N(active) },
@@ -120,6 +119,8 @@ class dex : public eosio::contract {
         auto taker_amount = taker_order.remain_amount(); // gxc amount
         auto maker_amount = maker_order.remain_amount();
         auto amount = taker_amount < maker_amount ? taker_amount : maker_amount;
+        eosio_assert(amount <= (maker_order.total_amount - maker_order.fulfilled_amount), "maker amount error");
+        eosio_assert(amount <= (taker_order.total_amount - taker_order.fulfilled_amount), "taker amount error");
         uint64_t gxc_amount = uint64_t(amount * price);
         auto buyer_get_amount = asset(amount, taker_order.symbol);
         auto seller_get_amount = asset(gxc_amount, string_to_symbol(4, "GXC"));  
@@ -127,10 +128,10 @@ class dex : public eosio::contract {
         auto taker_get_amount = taker_order.type == 0 ? buyer_get_amount : seller_get_amount;
         /*update_and_transfer_order(taker_order, taker_get_amount, maker_get_amount);
         update_and_transfer_order(maker_order, maker_get_amount, taker_get_amount);*/
-        uint8_t taker_status = taker_order.total_amount == (taker_order.fulfilled_amount + taker_get_amount.amount) ? 1 : 0;
+        uint8_t taker_status = taker_order.total_amount == (taker_order.fulfilled_amount + amount) ? 1 : 0;
         asset taker_withdraw_asset = taker_order.deposit_remain_asset - maker_get_amount;
         orders.modify(taker_order, _self, [&](auto & acnt) {
-          acnt.fulfilled_amount += taker_get_amount.amount;
+          acnt.fulfilled_amount += amount;
           acnt.status = taker_status;
           if(taker_status == 1){
             acnt.deposit_remain_asset.amount = 0;
@@ -152,10 +153,10 @@ class dex : public eosio::contract {
           ).send();
         }
 
-        uint8_t maker_status = maker_order.total_amount == (maker_order.fulfilled_amount + maker_get_amount.amount) ? 1 : 0;
+        uint8_t maker_status = maker_order.total_amount == (maker_order.fulfilled_amount + amount) ? 1 : 0;
         asset maker_withdraw_asset = maker_order.deposit_remain_asset - taker_get_amount;
         orders.modify(maker_order, _self, [&](auto & acnt) {
-          acnt.fulfilled_amount += maker_get_amount.amount;
+          acnt.fulfilled_amount += amount;
           acnt.status = maker_status;
           if(maker_status == 1){
             acnt.deposit_remain_asset.amount = 0;
